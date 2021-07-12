@@ -23,7 +23,7 @@ object CourseEnrollmentModelSRL extends BaseCourseMetricsSRL[Empty, BaseCourseMe
 
   implicit val className: String = "org.ekstep.analytics.model.CourseEnrollmentModelSRL"
   override def name: String = "CourseEnrollmentModelSRL"
-//  val sunbirdCoursesKeyspace: String = AppConf.getConfig("course.metrics.cassandra.sunbirdCoursesKeyspace")
+  val sunbirdCoursesKeyspace: String = AppConf.getConfig("course.metrics.cassandra.sunbirdCoursesKeyspace")
 
     override def algorithm(events: RDD[BaseCourseMetricsOutputSRL], config: Map[String, AnyRef])(implicit sc: SparkContext, fc: FrameworkContext): RDD[CourseEnrollmentOutputSRL] = {
     implicit val sqlContext = new SQLContext(sc)
@@ -50,10 +50,13 @@ object CourseEnrollmentModelSRL extends BaseCourseMetricsSRL[Empty, BaseCourseMe
     data
   }
 
-  def getCourseEnrollmentOutputSRL(events: RDD[BaseCourseMetricsOutputSRL])(implicit sc: SparkContext, fc: FrameworkContext, sqlContext: SQLContext): RDD[(BaseCourseMetricsOutputSRL, Option[ESResponse])] =  {
+  def getCourseEnrollmentOutputSRL(events: RDD[BaseCourseMetricsOutputSRL],loadData: (SparkSession, Map[String, String], String, StructType) => DataFrame)(implicit sc: SparkContext, fc: FrameworkContext, sqlContext: SQLContext, spark: SparkSession): RDD[(BaseCourseMetricsOutputSRL, Option[ESResponse])] =  {
 
-    val batchId = events.collect().map(f => f.batchId)
-    val courseId = events.collect().map(f => f.courseId)
+//    val batchId = events.collect().map(f => f.batchId)
+//    val courseId = events.collect().map(f => f.courseId)
+    val userEnrolledCount = getUserEnrollmentDF(loadData)
+    val participantCount = userEnrolledCount.groupBy("batchid").count()
+    val completedCount = userEnrolledCount.groupBy("batchid").filter(userEnrolledCount("completionpercentage").equalTo("100")).count()
 
     val courseCounts = getCourseBatchCounts(JSONUtils.serialize(courseId),JSONUtils.serialize(batchId))
     val baseCourseMetricsOutput = events.map(f=> (f.batchId,f))
@@ -93,9 +96,8 @@ object CourseEnrollmentModelSRL extends BaseCourseMetricsSRL[Empty, BaseCourseMe
     )
   }
 
-//  def getUserEnrollmentDF(loadData: (SparkSession, Map[String, String], String, StructType) => DataFrame)(implicit spark: SparkSession): DataFrame = {
-//    loadData(spark, Map("table" -> "user_enrolments", "keyspace" -> sunbirdCoursesKeyspace), "org.apache.spark.sql.cassandra", new StructType())
-//      .select(col("batchid"), col("userid"), col("courseid"), col("active"), col("certificates")
-//        , col("enrolleddate"), col("completedon"))
-//  }
+  def getUserEnrollmentDF(loadData: (SparkSession, Map[String, String], String, StructType) => DataFrame)(implicit spark: SparkSession): DataFrame = {
+    loadData(spark, Map("table" -> "user_enrolments", "keyspace" -> sunbirdCoursesKeyspace), "org.apache.spark.sql.cassandra", new StructType())
+      .select(col("batchid"), col("completionpercentage"))
+  }
 }

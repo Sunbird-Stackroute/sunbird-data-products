@@ -453,6 +453,7 @@ object CourseMetricsJob extends optional.Application with IJob with ReportGenera
     import org.elasticsearch.spark.sql._
     val participantsCount = reportDF.count()
     val courseCompletionCount = reportDF.filter(col("course_completion").equalTo(100)).count()
+    JobLogger.log("saveReportToES method called ==========   : "+ participantsCount, None, INFO)
 
     val batchStatsDF = reportDF
       .select(
@@ -478,6 +479,8 @@ object CourseMetricsJob extends optional.Application with IJob with ReportGenera
         from_unixtime(unix_timestamp(col("enrolleddate"), "yyyy-MM-dd HH:mm:ss:SSSZ"), "yyyy-MM-dd'T'HH:mm:ss'Z'").as("enrolledOn"),
         col("certificate_status").as("certificateStatus"))
 
+    JobLogger.log("batch stats dataframe is ==========   : "+ batchStatsDF, None, INFO)
+
     import spark.implicits._
     val batchDetails = Seq(BatchDetails(batch.batchid, courseCompletionCount, participantsCount)).toDF
     val batchDetailsDF = batchDetails
@@ -491,6 +494,7 @@ object CourseMetricsJob extends optional.Application with IJob with ReportGenera
     val cBatchIndex = AppConf.getConfig("course.metrics.es.index.cbatch")
 
     try {
+      JobLogger.log("into the try block ==========:  ", None, INFO)
       batchStatsDF.saveToEs(s"$newIndex/_doc", Map("es.mapping.id" -> "id"))
       JobLogger.log("Indexing batchStatsDF is success for: " + batch.batchid, None, INFO)
       // upsert batch details to cbatch index

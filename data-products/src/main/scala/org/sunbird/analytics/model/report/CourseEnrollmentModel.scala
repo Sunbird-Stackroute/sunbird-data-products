@@ -58,6 +58,8 @@ object CourseEnrollmentModel extends BaseCourseMetrics[Empty, BaseCourseMetricsO
     val encoder = Encoders.product[ESResponse]
     val courseInfo = courseCounts.as[ESResponse](encoder).rdd
 
+    val completedCount = getCompletedCounts.collect().foreach(println)
+
     val courses = courseInfo.map(f => (f.batchId, f))
     val finalRDD = baseCourseMetricsOutput.leftOuterJoin(courses)
     finalRDD.map(f => f._2)
@@ -88,5 +90,12 @@ object CourseEnrollmentModel extends BaseCourseMetrics[Empty, BaseCourseMetricsO
       .load("course-batch").select(
         col("participantCount"), col("completedCount"), col("id").as("batchId")
       )
+  }
+
+  def getCompletedCounts()(implicit sc: SparkContext, sqlContext: SQLContext): DataFrame ={
+
+    val completionMetrics = getCourseCompletionMetrics(sqlContext.sparkSession);
+    completionMetrics.select(
+      col("batchid"),col("userid"), col("completionPercentage"))
   }
 }

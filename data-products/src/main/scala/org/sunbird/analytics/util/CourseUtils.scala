@@ -244,4 +244,14 @@ object CourseUtils {
       } else List[CourseBatchInfo]()
     }
   }
+  def getCourseCompletedDetails(spark: SparkSession, loadData: (SparkSession, Map[String, String]) => DataFrame): DataFrame = {
+    val sunbirdCoursesKeyspace = Constants.SUNBIRD_COURSES_KEY_SPACE
+    loadData(spark, Map("table" -> "course_batch", "keyspace" -> sunbirdCoursesKeyspace))
+      .select(
+        col("courseid").as("courseId"),
+        col("batchid").as("batchId"),
+        col("userid").as("userId"),
+        col("completionPercentage").as("completionPercentage")
+      )
+  }
 }

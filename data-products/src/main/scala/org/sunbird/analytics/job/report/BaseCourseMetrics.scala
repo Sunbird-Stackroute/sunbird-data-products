@@ -40,4 +40,10 @@ trait BaseCourseMetrics[T <: AnyRef, A <: BaseCourseMetricsOutput, B <: AlgoOutp
     val joinWithTenant = joinCourses.join(tenantInfo, joinCourses.col("channel") === tenantInfo.col("id"), "inner")
     joinWithTenant.na.fill("unknown", Seq("slug")).select("courseName","batchName","status","slug", "courseId", "batchId")
   }
+
+  def getCourseCompletionMetrics(spark: SparkSession)(implicit sc: SparkContext): DataFrame = {
+    implicit val sqlContext = new SQLContext(sc)
+    val courses = CourseUtils.getCourseCompletedDetails(spark,CourseUtils.loadData).select("courseName","batchName","status","slug", "courseId", "batchId")
+    courses.select("courseName","batchName","status","slug", "courseId", "batchId")
+  }
 }
